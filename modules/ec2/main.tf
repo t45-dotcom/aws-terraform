@@ -33,6 +33,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 }
 
 # EC2 Instance
+# checkov:skip=CKV_AWS_135:EBS optimization is optional and not supported on all instance types (e.g., t3.micro). It's configurable via enable_ebs_optimized variable for supported instance types.
 resource "aws_instance" "web_server" {
   ami           = var.ami_id
   instance_type = var.instance_type

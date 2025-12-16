@@ -1,3 +1,4 @@
+# checkov:skip=CKV2_AWS_5:Security group is attached to EC2 instance via module reference in main.tf (security_group_ids = [module.security_group.security_group_id])
 resource "aws_security_group" "web" {
   name_prefix = "${var.project_name}-web-sg-"
   description = "Security group for web server - allows HTTP and SSH"
