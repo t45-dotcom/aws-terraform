@@ -45,7 +45,7 @@ gh workflow run terraform.yml -f action=destroy
 ## Direct Link
 
 You can also go directly to:
-`https://github.com/SrustikGowda/aws-terraform/actions/workflows/terraform.yml`
+`https://github.com/t45-dotcom/aws-terraform/actions/workflows/terraform.yml`
 
 The "Run workflow" button should be visible there.
 

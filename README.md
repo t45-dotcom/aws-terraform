@@ -201,7 +201,7 @@ aws dynamodb wait table-exists --table-name terraform-locks-${ACCOUNT_ID}
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/SrustikGowda/aws-terraform.git
+git clone https://github.com/t45-dotcom/aws-terraform.git
 cd aws-terraform
 ```
 
@@ -656,8 +656,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For issues, questions, or contributions:
 
-- **Issues**: [GitHub Issues](https://github.com/SrustikGowda/aws-terraform/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/SrustikGowda/aws-terraform/discussions)
+- **Issues**: [GitHub Issues](https://github.com/t45-dotcom/aws-terraform/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/t45-dotcom/aws-terraform/discussions)
 
 ## 🔮 Future Enhancements
 

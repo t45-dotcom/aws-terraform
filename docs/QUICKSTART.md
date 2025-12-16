@@ -15,7 +15,7 @@ This guide will help you get up and running with the Terraform AWS EC2 deploymen
 ### 1. Clone and Navigate
 
 ```bash
-git clone https://github.com/SrustikGowda/aws-terraform.git
+git clone https://github.com/t45-dotcom/aws-terraform.git
 cd aws-terraform
 ```
 

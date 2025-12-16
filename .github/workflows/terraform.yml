@@ -120,7 +120,8 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -var="project_name=aws-terraform-project"
+        id: plan
+        run: terraform plan -out=tfplan
         continue-on-error: true
 
       - name: Comment PR with Plan
@@ -153,7 +154,6 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
     environment:
       name: production
-      url: ${{ steps.apply.outputs.instance_url }}
     
     steps:
       - name: Checkout code
@@ -184,7 +184,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -var="project_name=aws-terraform-project"
+        run: terraform plan -out=tfplan
 
       - name: Terraform Apply
         id: apply
@@ -193,27 +193,26 @@ jobs:
       - name: Get Outputs
         id: outputs
         run: |
-          echo "instance_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
-          echo "instance_url=$(terraform output -raw instance_url)" >> $GITHUB_OUTPUT
           echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
+          echo "instance_public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
+          echo "instance_url=$(terraform output -raw instance_url)" >> $GITHUB_OUTPUT
 
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Instance ID:** ${{ steps.outputs.outputs.instance_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Public IP:** ${{ steps.outputs.outputs.instance_ip }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Instance URL:** ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Public IP:** \`${{ steps.outputs.outputs.instance_public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Instance URL:** ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Access Information" >> $GITHUB_STEP_SUMMARY
-          echo "Visit: ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Infrastructure deployed successfully!"
 
   terraform-destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
     needs: [terraform-lint, terraform-security-scan]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
     
     steps:
       - name: Checkout code
@@ -244,5 +243,10 @@ jobs:
         run: terraform init
 
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve -var="project_name=aws-terraform-project"
+        run: terraform destroy -auto-approve
 
+      - name: Destroy Summary
+        run: |
+          echo "## 🗑️ Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All resources have been destroyed successfully!" >> $GITHUB_STEP_SUMMARY
