@@ -204,7 +204,10 @@ jobs:
         run: |
           echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          INSTANCE_COUNT=$(echo '${{ steps.outputs.outputs.instance_ids }}' | jq 'length')
+          INSTANCE_IDS='${{ steps.outputs.outputs.instance_ids }}'
+          INSTANCE_IPS='${{ steps.outputs.outputs.instance_public_ips }}'
+          INSTANCE_URLS='${{ steps.outputs.outputs.instance_urls }}'
+          INSTANCE_COUNT=$(echo "$INSTANCE_IDS" | jq 'length')
           if [ "$INSTANCE_COUNT" -eq 1 ]; then
             echo "**Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
             echo "**Public IP:** \`${{ steps.outputs.outputs.instance_public_ip }}\`" >> $GITHUB_STEP_SUMMARY
@@ -213,9 +216,17 @@ jobs:
             echo "**Total Instances:** $INSTANCE_COUNT" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Instance Details:" >> $GITHUB_STEP_SUMMARY
-            echo '${{ steps.outputs.outputs.instance_ids }}' | jq -r 'to_entries[] | "**Instance \(.key + 1):**\n- ID: `\(.value)`\n- Public IP: `\(${{ steps.outputs.outputs.instance_public_ips }} | fromjson[.key])`\n- URL: \(${{ steps.outputs.outputs.instance_urls }} | fromjson[.key])\n"' >> $GITHUB_STEP_SUMMARY
+            for i in $(seq 0 $((INSTANCE_COUNT - 1))); do
+              INSTANCE_ID=$(echo "$INSTANCE_IDS" | jq -r ".[$i]")
+              INSTANCE_IP=$(echo "$INSTANCE_IPS" | jq -r ".[$i]")
+              INSTANCE_URL=$(echo "$INSTANCE_URLS" | jq -r ".[$i]")
+              echo "**Instance $((i + 1)):**" >> $GITHUB_STEP_SUMMARY
+              echo "- ID: \`$INSTANCE_ID\`" >> $GITHUB_STEP_SUMMARY
+              echo "- Public IP: \`$INSTANCE_IP\`" >> $GITHUB_STEP_SUMMARY
+              echo "- URL: $INSTANCE_URL" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            done
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Infrastructure deployed successfully!"
 
   terraform-destroy:
