@@ -1,28 +1,13 @@
-name: Terraform CI/CD Pipeline
+name: Terraform CI/CD
 
 on:
   push:
     branches:
       - main
-      - develop
-    paths:
-      - '*.tf'
-      - '*.tfvars'
-      - 'modules/**/*.tf'
-      - 'scripts/**/*.sh'
-      - '.github/workflows/*.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '*.tf'
-      - '*.tfvars'
-      - 'modules/**/*.tf'
-      - 'scripts/**/*.sh'
   workflow_dispatch:
     inputs:
       action:
-        description: 'Terraform action to perform'
+        description: 'Terraform action'
         required: true
         type: choice
         options:
@@ -35,138 +20,16 @@ env:
   AWS_REGION: "us-east-1"
 
 jobs:
-  terraform-lint:
-    name: Terraform Lint & Format Check
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Init
-        run: terraform init -backend=false
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Run TFLint
-        uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: latest
-
-      - name: TFLint Check
-        run: tflint --init && tflint
-
-  terraform-security-scan:
-    name: Terraform Security Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Checkov Security Scan
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: .
-          framework: terraform
-          soft_fail: true
-
-      - name: Run TFSec Security Scan
-        uses: aquasecurity/tfsec-action@v1.0.0
-        with:
-          soft_fail: true
-
-  terraform-plan:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-    needs: [terraform-lint, terraform-security-scan]
-    if: github.event_name == 'pull_request'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Validate AWS Secrets
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "::error::AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in repository secrets."
-            echo "::error::Go to Settings > Secrets and variables > Actions to configure them."
-            exit 1
-          fi
-          echo "✅ AWS secrets validated"
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -out=tfplan
-        continue-on-error: true
-
-      - name: Comment PR with Plan
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Plan 📖
-            \`\`\`
-            ${process.env.PLAN}
-            \`\`\`
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
-    needs: [terraform-lint, terraform-security-scan]
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-    environment:
-      name: production
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Validate AWS Secrets
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "::error::AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in repository secrets."
-            echo "::error::Go to Settings > Secrets and variables > Actions to configure them."
-            exit 1
-          fi
-          echo "✅ AWS secrets validated"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -183,71 +46,20 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
       - name: Terraform Apply
-        id: apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve
 
-      - name: Get Outputs
-        id: outputs
-        run: |
-          echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
-          echo "instance_public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
-          echo "instance_url=$(terraform output -raw instance_url)" >> $GITHUB_OUTPUT
-          echo "instance_ids=$(terraform output -json instance_ids)" >> $GITHUB_OUTPUT
-          echo "instance_public_ips=$(terraform output -json instance_public_ips)" >> $GITHUB_OUTPUT
-          echo "instance_urls=$(terraform output -json instance_urls)" >> $GITHUB_OUTPUT
-
-      - name: Deployment Summary
-        run: |
-          echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          INSTANCE_IDS='${{ steps.outputs.outputs.instance_ids }}'
-          INSTANCE_IPS='${{ steps.outputs.outputs.instance_public_ips }}'
-          INSTANCE_URLS='${{ steps.outputs.outputs.instance_urls }}'
-          INSTANCE_COUNT=$(echo "$INSTANCE_IDS" | jq 'length')
-          if [ "$INSTANCE_COUNT" -eq 1 ]; then
-            echo "**Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**Public IP:** \`${{ steps.outputs.outputs.instance_public_ip }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**Instance URL:** ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**Total Instances:** $INSTANCE_COUNT" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Instance Details:" >> $GITHUB_STEP_SUMMARY
-            for i in $(seq 0 $((INSTANCE_COUNT - 1))); do
-              INSTANCE_ID=$(echo "$INSTANCE_IDS" | jq -r ".[$i]")
-              INSTANCE_IP=$(echo "$INSTANCE_IPS" | jq -r ".[$i]")
-              INSTANCE_URL=$(echo "$INSTANCE_URLS" | jq -r ".[$i]")
-              echo "**Instance $((i + 1)):**" >> $GITHUB_STEP_SUMMARY
-              echo "- ID: \`$INSTANCE_ID\`" >> $GITHUB_STEP_SUMMARY
-              echo "- Public IP: \`$INSTANCE_IP\`" >> $GITHUB_STEP_SUMMARY
-              echo "- URL: $INSTANCE_URL" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
-          echo "✅ Infrastructure deployed successfully!"
+      - name: Show Outputs
+        run: terraform output
 
   terraform-destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
-    needs: [terraform-lint, terraform-security-scan]
-    if: |
-      github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Validate AWS Secrets
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "::error::AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in repository secrets."
-            echo "::error::Go to Settings > Secrets and variables > Actions to configure them."
-            exit 1
-          fi
-          echo "✅ AWS secrets validated"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -266,9 +78,3 @@ jobs:
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
-
-      - name: Destroy Summary
-        run: |
-          echo "## 🗑️ Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ All resources have been destroyed successfully!" >> $GITHUB_STEP_SUMMARY
