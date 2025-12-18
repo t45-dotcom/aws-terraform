@@ -196,14 +196,25 @@ jobs:
           echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
           echo "instance_public_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
           echo "instance_url=$(terraform output -raw instance_url)" >> $GITHUB_OUTPUT
+          echo "instance_ids=$(terraform output -json instance_ids)" >> $GITHUB_OUTPUT
+          echo "instance_public_ips=$(terraform output -json instance_public_ips)" >> $GITHUB_OUTPUT
+          echo "instance_urls=$(terraform output -json instance_urls)" >> $GITHUB_OUTPUT
 
       - name: Deployment Summary
         run: |
           echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Public IP:** \`${{ steps.outputs.outputs.instance_public_ip }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Instance URL:** ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
+          INSTANCE_COUNT=$(echo '${{ steps.outputs.outputs.instance_ids }}' | jq 'length')
+          if [ "$INSTANCE_COUNT" -eq 1 ]; then
+            echo "**Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Public IP:** \`${{ steps.outputs.outputs.instance_public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Instance URL:** ${{ steps.outputs.outputs.instance_url }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Total Instances:** $INSTANCE_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Instance Details:" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.outputs.outputs.instance_ids }}' | jq -r 'to_entries[] | "**Instance \(.key + 1):**\n- ID: `\(.value)`\n- Public IP: `\(${{ steps.outputs.outputs.instance_public_ips }} | fromjson[.key])`\n- URL: \(${{ steps.outputs.outputs.instance_urls }} | fromjson[.key])\n"' >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Infrastructure deployed successfully!"
 

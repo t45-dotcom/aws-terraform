@@ -13,6 +13,7 @@ module "security_group" {
 module "ec2" {
   source = "./modules/ec2"
 
+  instance_count       = var.instance_count
   project_name         = var.project_name
   ami_id               = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu.id
   instance_type        = var.instance_type
@@ -26,11 +27,12 @@ module "ec2" {
   enable_monitoring    = var.enable_monitoring
 }
 
-# Monitoring Module
+# Monitoring Module - Create monitoring for each instance
 module "monitoring" {
-  source = "./modules/monitoring"
+  source   = "./modules/monitoring"
+  for_each = var.enable_monitoring ? { for idx, id in module.ec2.instance_ids : idx => id } : {}
 
   project_name      = var.project_name
-  instance_id       = module.ec2.instance_id
+  instance_id       = each.value
   enable_monitoring = var.enable_monitoring
 }

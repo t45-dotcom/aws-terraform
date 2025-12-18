@@ -1,3 +1,8 @@
+variable "instance_count" {
+  type        = number
+  description = "Number of EC2 instances to create"
+}
+
 variable "project_name" {
   type        = string
   description = "Project name for resource tagging"

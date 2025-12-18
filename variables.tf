@@ -1,3 +1,14 @@
+variable "instance_count" {
+  type        = number
+  default     = 3
+  description = "Number of EC2 instances to create"
+
+  validation {
+    condition     = var.instance_count > 0 && var.instance_count <= 10
+    error_message = "Instance count must be between 1 and 10."
+  }
+}
+
 variable "instance_type" {
   type        = string
   default     = "t3.micro"
