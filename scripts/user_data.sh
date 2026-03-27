@@ -84,7 +84,7 @@ cat > /var/www/html/index.html <<EOF
 <body>
     <div class="container">
         <h1>🚀 Terraform Managed EC2</h1>
-         <h1>🚀 Thanmai</h1>
+         
         <p class="subtitle">Infrastructure as Code Successfully Deployed!</p>
         
         <div class="info">
