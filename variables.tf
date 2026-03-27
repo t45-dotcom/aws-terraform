@@ -1,7 +1,7 @@
 variable "instance_count" {
   type        = number
-  default     = 2
-  
+  default     = 3
+
   description = "Number of EC2 instances to create"
 
   validation {
